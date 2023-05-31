@@ -24,7 +24,7 @@ class GESNBase(nn.Module):
     def __prepare_data(data: Data) -> Tuple[Tensor, Tensor]:
         x, e = data.x, data.edge_index
         e_i, e_a = get_laplacian(e, num_nodes=x.size(0), normalization='sym')
-        l = to_dense_adj(edge_index=e_i, edge_attr=e_a).squeeze(dim=0)
+        l = to_dense_adj(edge_index=e_i, edge_attr=e_a).squeeze(dim=0).to_sparse()
         return x, l
 
     def __reservoir_forward(self, data: List[Data]) -> Tensor:

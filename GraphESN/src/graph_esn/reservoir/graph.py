@@ -1,6 +1,7 @@
 import torch
 from torch import nn, Tensor
 from torch.nn.functional import linear
+from typing import Union, List
 
 from auto_esn.esn.reservoir.activation import Activation, tanh, self_normalizing_default
 from auto_esn.esn.reservoir.cell import ESNCellBase
@@ -86,13 +87,26 @@ class DeepGESNCell(nn.Module):
                             for i in range(1, num_layers)]
         self.gpu_enabled = False
 
-    def forward(self, X: Tensor, L: Tensor) -> Tensor:
+    def __forward_pyramidal(self, X: Tensor, L: List[Tensor]) -> Tensor:
+        res = []
+        cell_input = X
+        for i, (gesn_cell, layer_L) in enumerate(zip(self.layers, L)):
+            cell_input = gesn_cell(cell_input, layer_L)
+            res.append(cell_input)
+        return torch.cat(res, dim=-1)
+
+    def __forward_normal(self, X: Tensor, L: Tensor) -> Tensor:
         res = []
         cell_input = X
         for i, gesn_cell in enumerate(self.layers):
             cell_input = gesn_cell(cell_input, L)
             res.append(cell_input)
         return torch.cat(res, dim=-1)
+
+    def forward(self, X: Tensor, L: Union[Tensor, List[Tensor]]) -> Tensor:
+        if isinstance(L, list):
+            return self.__forward_pyramidal(X, L)
+        return self.__forward_normal(X, L)
 
     def get_hidden_size(self):
         return sum([l.hidden_size for l in self.layers])
@@ -129,11 +143,24 @@ class GroupOfGESNCell(nn.Module):
         self.hidden_size = hidden_size
         self.gpu_enabled = False
 
-    def forward(self, X: Tensor, L: Tensor) -> Tensor:
+    def __forward_pyramid(self, X: Tensor, L: List[Tensor]) -> Tensor:
+        assert isinstance(self.groups[0], DeepGESNCell), "Inner model cells must support pyramidal input"
+        assert len(L) == len(self.groups)
+        res = []
+        for i, (gesn_cell, layer_L) in enumerate(zip(self.groups, L)):
+            res.append(gesn_cell(X, layer_L))
+        return torch.cat(res, dim=-1)
+
+    def __forward_normal(self, X: Tensor, L: Tensor) -> Tensor:
         res = []
         for i, gesn_cell in enumerate(self.groups):
             res.append(gesn_cell(X, L))
         return torch.cat(res, dim=-1)
+
+    def forward(self, X: Tensor, L: Union[Tensor, List[Tensor]]) -> Tensor:
+        if isinstance(L, list):
+            return self.__forward_pyramid(X, L)
+        return self.__forward_normal(X, L)
 
     def get_hidden_size(self):
         return sum([cell.get_hidden_size() for cell in self.groups])

@@ -5,13 +5,13 @@ from torch_geometric.datasets import TUDataset
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-from GraphESN.src.graph_esn.gesn import GroupedDeepGESN
+from graph_esn.gesn import GroupedDeepGESN
 from auto_esn.esn.reservoir.activation import self_normalizing_default
-from GraphESN.src.graph_esn.readout.aggregator import sum_vertex_features
+from graph_esn.readout.aggregator import sum_vertex_features
 from auto_esn.esn.reservoir.initialization import WeightInitializer, default_hidden
 
 
-dataset = TUDataset(root='data', name='PROTEINS')
+dataset = TUDataset(root='data', name='Mutagenicity')
 
 train_data, test_data, y_train, y_test = train_test_split(dataset, dataset.y, test_size=0.2, stratify=dataset.y,
                                                           random_state=42)
